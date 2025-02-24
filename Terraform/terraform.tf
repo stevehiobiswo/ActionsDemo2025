@@ -5,6 +5,9 @@
 terraform {
 
   backend "azurerm" {
+    resource_group_name  = "actionsdemo2025hiobi"
+    storage_account_name = "actionsdemo2025hiobi"
+    container_name       = "tfstate"
     key                  = "github.terraform.tfstate"
   }
 
