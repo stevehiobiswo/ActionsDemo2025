@@ -1,0 +1,62 @@
+# See https://docs.github.com/en/actions/about-github-actions/understanding-github-actions?learn=getting_started&learnProduct=actions for initial information and concepts of GitHub Actions
+
+name: Deploy Terraform
+on: 
+  # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows
+  # push - to deploy on every push to main branch
+  # schedule - to deploy on a schedule
+  # workflow_dispatch - to deploy manually
+  push:
+    # Name branches to filther the push event
+    # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#using-filters
+    branches:
+      - main
+
+jobs: # Jobs run in parallel by default
+  deploy: # Name of the first (and single) job
+    
+    # Runner to use - in this case, GitHub-hosted runner - https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#standard-github-hosted-runners-for-public-repositories
+    runs-on: ubuntu-latest
+
+    # Setting environment variables to be used in the workflow
+    env: 
+      STORAGE_ACCOUNT_NAME: ${{ secrets.STORAGE_ACCOUNT_NAME }}
+      STORAGE_CONTAINER_NAME: ${{ secrets.STORAGE_CONTAINER_NAME }}
+      RESOURCE_GROUP: 'RG-ActionsDemo2025'
+      DEPLOYMENT_NAME: 'ActionsDemo2025'
+      ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUB_ID }}
+      ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+
+    steps: # List of steps to run in the job sequentially
+
+    - name: Checkout code
+      uses: actions/checkout@v4 # Public Action - see https://github.com/marketplace/actions/checkout
+
+    - name: Log into Azure
+      id: login_azure
+      uses: azure/login@v2 # Public Action - see https://github.com/marketplace/actions/azure-login
+      with:
+        creds: ${{ secrets.AZURE_CREDS }}
+
+    - name: Setup Terraform
+      id: terraform_setup
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Terraform Init
+      id: terraform_init
+      working-directory: ./Terraform
+      run: |
+        echo "Tenant: ${{ env.ARM_TENANT_ID }}"
+        terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT_NAME" -backend-config="container_name=$STORAGE_CONTAINER_NAME" -backend-config="resource_group_name=$RESOURCE_GROUP"  
+
+    - name: Terraform Plan
+      id: terraform_plan
+      working-directory: ./Terraform
+      run: terraform plan -input=false
+
+    - name: Terraform Apply
+      id: terraform_apply
+      working-directory: ./Terraform
+      run: terraform apply -auto-approve  
